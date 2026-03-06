@@ -23,7 +23,8 @@ public:
     std::vector<SearchResult> search(const std::string& query, 
                                      SearchScope scope,
                                      const std::string& context_val,
-                                     bool only_success = false); 
+                                     bool only_success = false,
+                                     int limit = 5);
 
 private:
     std::string db_path_;

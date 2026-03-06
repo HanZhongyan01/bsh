@@ -26,6 +26,7 @@ add_executable(bsh-daemon
     src/daemon.cpp
     src/db.cpp
     src/git_utils.cpp
+    src/config.cpp
 )
 target_link_libraries(bsh-daemon PRIVATE SQLiteCpp PkgConfig::LIBGIT2)
 

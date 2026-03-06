@@ -149,40 +149,40 @@ void HistoryDB::initSchema() {
         stmt_search_global_ = std::make_unique<SQLite::Statement>(*db_,
             "SELECT c.id, c.cmd_text FROM commands_fts fts "
             "JOIN commands c ON fts.rowid = c.id "
-            "WHERE commands_fts MATCH ? ORDER BY c.last_timestamp DESC LIMIT 5");
+            "WHERE commands_fts MATCH ? ORDER BY c.last_timestamp DESC LIMIT ?");
 
         stmt_search_global_ok_ = std::make_unique<SQLite::Statement>(*db_,
             "SELECT c.id, c.cmd_text FROM commands_fts fts "
             "JOIN commands c ON fts.rowid = c.id "
-            "WHERE commands_fts MATCH ? AND c.success_count > 0 ORDER BY c.last_timestamp DESC LIMIT 5");
+            "WHERE commands_fts MATCH ? AND c.success_count > 0 ORDER BY c.last_timestamp DESC LIMIT ?");
 
         stmt_search_dir_ = std::make_unique<SQLite::Statement>(*db_,
             "SELECT c.id, c.cmd_text FROM commands_fts fts "
             "JOIN commands c ON fts.rowid = c.id "
             "JOIN command_context ctx ON ctx.command_id = c.id "
             "WHERE commands_fts MATCH ? AND ctx.cwd = ? "
-            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT 5");
+            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT ?");
 
         stmt_search_dir_ok_ = std::make_unique<SQLite::Statement>(*db_,
             "SELECT c.id, c.cmd_text FROM commands_fts fts "
             "JOIN commands c ON fts.rowid = c.id "
             "JOIN command_context ctx ON ctx.command_id = c.id "
             "WHERE commands_fts MATCH ? AND ctx.cwd = ? AND ctx.success_count > 0 "
-            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT 5");
+            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT ?");
 
         stmt_search_branch_ = std::make_unique<SQLite::Statement>(*db_,
             "SELECT c.id, c.cmd_text FROM commands_fts fts "
             "JOIN commands c ON fts.rowid = c.id "
             "JOIN command_context ctx ON ctx.command_id = c.id "
             "WHERE commands_fts MATCH ? AND ctx.git_branch = ? "
-            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT 5");
+            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT ?");
 
         stmt_search_branch_ok_ = std::make_unique<SQLite::Statement>(*db_,
             "SELECT c.id, c.cmd_text FROM commands_fts fts "
             "JOIN commands c ON fts.rowid = c.id "
             "JOIN command_context ctx ON ctx.command_id = c.id "
             "WHERE commands_fts MATCH ? AND ctx.git_branch = ? AND ctx.success_count > 0 "
-            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT 5");
+            "GROUP BY c.id ORDER BY MAX(ctx.last_timestamp) DESC LIMIT ?");
 
     } catch (std::exception& e) {
         std::cerr << "DB Init Error: " << e.what() << std::endl;
@@ -248,7 +248,8 @@ void HistoryDB::logCommand(const std::string& raw_cmd, const std::string& sessio
 std::vector<SearchResult> HistoryDB::search(const std::string& query, 
                                             SearchScope scope,
                                             const std::string& context_val,
-                                            bool only_success) {
+                                            bool only_success,
+                                            int limit) {
     std::vector<SearchResult> results;
     try {
         SQLite::Statement* stmt = nullptr;
@@ -258,12 +259,14 @@ std::vector<SearchResult> HistoryDB::search(const std::string& query,
             stmt = only_success ? stmt_search_global_ok_.get() : stmt_search_global_.get();
             stmt->reset();
             stmt->bind(1, fts_query);
+            stmt->bind(2, limit);
         }
         else if (scope == SearchScope::DIRECTORY) {
             stmt = only_success ? stmt_search_dir_ok_.get() : stmt_search_dir_.get();
             stmt->reset();
             stmt->bind(1, fts_query);
             stmt->bind(2, context_val);
+            stmt->bind(3, limit);
         }
         else if (scope == SearchScope::BRANCH) {
             stmt = only_success ? stmt_search_branch_ok_.get() : stmt_search_branch_.get();
@@ -271,6 +274,7 @@ std::vector<SearchResult> HistoryDB::search(const std::string& query,
             stmt->reset();
             stmt->bind(1, fts_query);
             stmt->bind(2, safe_branch);
+            stmt->bind(3, limit);
         }
 
         if (stmt) {
