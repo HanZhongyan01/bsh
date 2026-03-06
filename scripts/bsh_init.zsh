@@ -48,11 +48,24 @@ bindkey '^F' _bsh_toggle_success_filter
 zmodload zsh/net/socket
 zmodload zsh/datetime
 
-typeset -g _bsh_sock_path
-if [[ -n "$XDG_RUNTIME_DIR" ]]; then
-    _bsh_sock_path="$XDG_RUNTIME_DIR/bsh.sock"
-else
-    _bsh_sock_path="/tmp/bsh_$(id -u).sock"
+typeset -g _bsh_sock_path=""
+local _bsh_config_path=""
+if [[ -n "$XDG_CONFIG_HOME" ]]; then
+    _bsh_config_path="$XDG_CONFIG_HOME/bsh/config.toml"
+elif [[ -n "$HOME" ]]; then
+    _bsh_config_path="$HOME/.config/bsh/config.toml"
+fi
+
+if [[ -f "$_bsh_config_path" ]]; then
+    _bsh_sock_path=$(grep -E '^[[:space:]]*ipc_socket_path[[:space:]]*=' "$_bsh_config_path" | head -n 1 | awk -F'=' '{print $2}' | tr -d " '\"")
+fi
+
+if [[ -z "$_bsh_sock_path" ]]; then
+    if [[ -n "$XDG_RUNTIME_DIR" ]]; then
+        _bsh_sock_path="$XDG_RUNTIME_DIR/bsh.sock"
+    else
+        _bsh_sock_path="/tmp/bsh_$(id -u).sock"
+    fi
 fi
 
 _bsh_ensure_daemon() {

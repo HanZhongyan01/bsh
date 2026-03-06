@@ -1,6 +1,7 @@
 #include "db.hpp"
 #include "git_utils.hpp"
 #include "ipc.hpp"
+#include "config.hpp"
 #include <string_view>
 #include <iostream>
 #include <vector>
@@ -134,16 +135,20 @@ void writer_thread_loop(const std::string& db_path) {
 int main(int argc, char* argv[]) {
     daemonize();
 
-    HistoryDB history(get_db_path());
+    Config config = Config::load();
+    std::string db_path = config.db_path.empty() ? get_db_path() : config.db_path;
+    int limit = config.max_suggestions;
+
+    HistoryDB history(db_path);
     history.initSchema();
 
-    std::thread writer_thread(writer_thread_loop, get_db_path());
+    std::thread writer_thread(writer_thread_loop, db_path);
     writer_thread.detach();
 
     int server_fd;
     struct sockaddr_un address;
     
-    std::string socket_path = get_socket_path();
+    std::string socket_path = config.ipc_socket_path.empty() ? get_socket_path() : config.ipc_socket_path;
     unlink(socket_path.c_str());
 
     if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == 0) exit(EXIT_FAILURE);
@@ -214,7 +219,7 @@ int main(int argc, char* argv[]) {
                     header_text += " [OK] ";
                 }
 
-                auto results = history.search(query, scope, ctx_val, success);
+                auto results = history.search(query, scope, ctx_val, success, limit);
 
                 if (results.empty()) {
                     close(new_socket);
