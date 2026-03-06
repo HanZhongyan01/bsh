@@ -1,0 +1,4 @@
+command,directory
+"aws s3 cp s3://my-bucket/file.txt .",""
+"docker exec -it my_container /bin/sh",""
+"ls -al","/home/user"
